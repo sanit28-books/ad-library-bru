@@ -115,6 +115,22 @@
     .confirm-actions button{width:100%}
 
 
+
+    .admin-status{
+      margin:10px 0 14px;padding:11px 12px;border-radius:12px;
+      border:1.5px solid var(--line);font-size:13px;font-weight:700;text-align:center
+    }
+    .admin-status.locked{background:#fff3de;color:#8a5500;border-color:#e6c58f}
+    .admin-status.unlocked{background:#eef8f1;color:#2f6f56;border-color:#afd0bc}
+    .admin-login-box{
+      width:min(100%,420px);background:#fffdf9;border:2px solid #d2bda5;
+      border-radius:20px;box-shadow:0 18px 48px rgba(36,27,18,.28);
+      padding:22px;text-align:center
+    }
+    .admin-login-box h3{margin:0 0 8px;color:var(--teal)}
+    .admin-login-box p{font-size:13px;line-height:1.55;color:#666}
+    .admin-login-box label{text-align:left}
+
     .delete-preview{
       margin:12px 0 16px;
       padding:12px;
@@ -228,11 +244,18 @@
         </label>
         <button class="primary" onclick="exportExcel()">📤 Export Excel</button>
         <button onclick="backupJSON()">สำรอง JSON</button>
-        <button class="danger" onclick="openResetConfirm()">🗑 ลบข้อมูลทีละรายการ</button>
+        
+        <button id="adminLoginBtn" onclick="openAdminLogin()">🔐 Admin Login</button>
+        <button id="adminLogoutBtn" onclick="adminLogout()" style="display:none">ออกจากระบบ Admin</button>
+        <button id="deleteDataBtn" class="danger" onclick="openResetConfirm()" disabled title="ต้องเข้าสู่ระบบ Admin ก่อน">🗑 ลบข้อมูลทีละรายการ</button>
+
+      </div>
+      <div id="adminStatus" class="admin-status locked" aria-live="polite">
+        🔒 สิทธิ์ลบข้อมูลถูกล็อก — กรุณาเข้าสู่ระบบ Admin
       </div>
       <p class="note">
         ฐานข้อมูลทำงานในเบราว์เซอร์ของอุปกรณ์นี้ และสามารถ Export เป็น Excel ได้ทุกเมื่อ
-        หากเปิดจากหลายเครื่อง ข้อมูลจะไม่แชร์กันอัตโนมัติ เว้นแต่ติดตั้ง Backend/Cloud Database เพิ่มภายหลัง
+        หากเปิดจากหลายเครื่อง ข้อมูลจะไม่แชร์กันอัตโนมัติ เว้นแต่ติดตั้ง Backend/Cloud Database เพิ่มภายหลัง<br><b>การลบข้อมูลต้องเข้าสู่ระบบ Admin ก่อน</b>
       </p>
     </div>
     <div class="card">
@@ -248,6 +271,28 @@
 </main>
 
 
+
+
+<div id="adminLoginModal" class="confirm-overlay" role="dialog" aria-modal="true" aria-labelledby="adminLoginTitle">
+  <div class="admin-login-box">
+    <div class="confirm-icon">🔐</div>
+    <h3 id="adminLoginTitle">เข้าสู่ระบบ Admin</h3>
+    <p>เฉพาะ Admin เท่านั้นที่สามารถลบข้อมูลหนังสือ สมาชิก และประวัติยืม–คืนได้</p>
+
+    <label for="adminUser">ชื่อผู้ใช้</label>
+    <input id="adminUser" autocomplete="username" placeholder="admin">
+
+    <label for="adminPassword">รหัสผ่าน</label>
+    <input id="adminPassword" type="password" autocomplete="current-password" placeholder="รหัสผ่าน Admin">
+
+    <div id="adminLoginMsg" class="note" aria-live="polite" style="margin:8px 0"></div>
+
+    <div class="confirm-actions">
+      <button type="button" onclick="closeAdminLogin()">ยกเลิก</button>
+      <button type="button" class="primary" onclick="adminLogin()">เข้าสู่ระบบ</button>
+    </div>
+  </div>
+</div>
 
 <div id="resetConfirm" class="confirm-overlay" role="dialog" aria-modal="true" aria-labelledby="resetTitle">
   <div class="confirm-box">
@@ -449,7 +494,96 @@ function backupJSON(){
   const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='AD-Library-Backup.json';a.click();URL.revokeObjectURL(a.href);
 }
+
+// --- Admin protection for delete operations ---
+// หมายเหตุ: เป็นการป้องกันระดับหน้าเว็บ (client-side) สำหรับลดการลบโดยไม่ได้ตั้งใจ
+// หากต้องการความปลอดภัยจริงสำหรับหลายผู้ใช้ ต้องใช้ Backend Authentication
+let adminAuthenticated=false;
+
+// ค่าเริ่มต้น: username = admin, password = AD2569
+// เก็บเป็น SHA-256 hash เพื่อไม่แสดงรหัสผ่านเป็นข้อความตรงในโค้ด
+const ADMIN_USERNAME='admin';
+const ADMIN_PASSWORD_HASH='434c4f69416e5cc8fcd7280f3331e89152277d1dc1ee338fa5f3a76777a5adc5';
+
+async function sha256(text){
+  const data=new TextEncoder().encode(text);
+  const digest=await crypto.subtle.digest('SHA-256',data);
+  return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+function updateAdminUI(){
+  const login=document.getElementById('adminLoginBtn');
+  const logout=document.getElementById('adminLogoutBtn');
+  const del=document.getElementById('deleteDataBtn');
+  const status=document.getElementById('adminStatus');
+
+  if(adminAuthenticated){
+    login.style.display='none';
+    logout.style.display='';
+    del.disabled=false;
+    del.title='ลบข้อมูลทีละรายการ';
+    status.className='admin-status unlocked';
+    status.textContent='🔓 Admin เข้าสู่ระบบแล้ว — สามารถลบข้อมูลได้';
+  }else{
+    login.style.display='';
+    logout.style.display='none';
+    del.disabled=true;
+    del.title='ต้องเข้าสู่ระบบ Admin ก่อน';
+    status.className='admin-status locked';
+    status.textContent='🔒 สิทธิ์ลบข้อมูลถูกล็อก — กรุณาเข้าสู่ระบบ Admin';
+  }
+}
+
+function openAdminLogin(){
+  document.getElementById('adminLoginModal').classList.add('show');
+  document.getElementById('adminUser').value='admin';
+  document.getElementById('adminPassword').value='';
+  document.getElementById('adminLoginMsg').textContent='';
+  setTimeout(()=>document.getElementById('adminPassword').focus(),50);
+}
+
+function closeAdminLogin(){
+  document.getElementById('adminLoginModal').classList.remove('show');
+}
+
+async function adminLogin(){
+  const user=document.getElementById('adminUser').value.trim();
+  const pass=document.getElementById('adminPassword').value;
+  const msg=document.getElementById('adminLoginMsg');
+
+  if(!user || !pass){
+    msg.className='error';
+    msg.textContent='กรุณากรอกชื่อผู้ใช้และรหัสผ่าน';
+    return;
+  }
+
+  const hash=await sha256(pass);
+  if(user===ADMIN_USERNAME && hash===ADMIN_PASSWORD_HASH){
+    adminAuthenticated=true;
+    updateAdminUI();
+    closeAdminLogin();
+  }else{
+    msg.className='error';
+    msg.textContent='ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';
+  }
+}
+
+function adminLogout(){
+  adminAuthenticated=false;
+  updateAdminUI();
+  closeResetConfirm();
+}
+
+document.getElementById('adminLoginModal').addEventListener('click',e=>{
+  if(e.target.id==='adminLoginModal') closeAdminLogin();
+});
+document.getElementById('adminPassword').addEventListener('keydown',e=>{
+  if(e.key==='Enter') adminLogin();
+});
+
+
 function openResetConfirm(){
+  if(!adminAuthenticated){ openAdminLogin(); return; }
   document.getElementById('resetConfirm').classList.add('show');
   document.getElementById('deleteType').value='book';
   populateDeleteItems();
@@ -536,6 +670,7 @@ function updateDeletePreview(){
   btn.disabled=false;
 }
 function confirmDeleteOne(){
+  if(!adminAuthenticated){ closeResetConfirm(); openAdminLogin(); return; }
   const type=document.getElementById('deleteType').value;
   const id=document.getElementById('deleteItem').value;
   if(!id) return;
@@ -572,6 +707,7 @@ document.getElementById('resetConfirm').addEventListener('click',e=>{
   if(e.target.id==='resetConfirm') closeResetConfirm();
 });
 refresh();
+updateAdminUI();
 </script>
 </body>
 </html>
