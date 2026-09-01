@@ -89,6 +89,54 @@
       nav button{font-size:10px}
       .head{justify-content:flex-start}
     }
+
+    .confirm-overlay{
+      position:fixed;inset:0;z-index:100;
+      display:none;align-items:center;justify-content:center;
+      background:rgba(24,28,27,.55);backdrop-filter:blur(5px);
+      padding:18px
+    }
+    .confirm-overlay.show{display:flex}
+    .confirm-box{
+      width:min(100%,430px);background:#fffdf9;
+      border:2px solid #d2bda5;border-radius:20px;
+      box-shadow:0 18px 48px rgba(36,27,18,.28);
+      padding:22px;text-align:center
+    }
+    .confirm-icon{
+      width:64px;height:64px;margin:0 auto 12px;
+      display:grid;place-items:center;border-radius:50%;
+      background:#fff0ee;color:#a83d32;font-size:30px;
+      border:2px solid #e7b7b0
+    }
+    .confirm-box h3{margin:0 0 8px;color:#8d3028}
+    .confirm-box p{font-size:14px;line-height:1.6;color:#5d625f;margin:0 0 16px}
+    .confirm-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .confirm-actions button{width:100%}
+
+
+    .delete-preview{
+      margin:12px 0 16px;
+      padding:12px;
+      border:1.5px solid #decbb6;
+      border-radius:13px;
+      background:#fff8ee;
+      text-align:left;
+      font-size:13px;
+      line-height:1.55;
+      color:#555
+    }
+    .delete-preview.warning{
+      background:#fff0ee;
+      border-color:#e5b4ae;
+      color:#8d3028
+    }
+    #deleteConfirmBtn:disabled{
+      opacity:.45;
+      cursor:not-allowed;
+      box-shadow:none
+    }
+
     @media print{
       header,nav,.toolbar,.no-print{display:none!important}
       body{background:#fff;padding:0}
@@ -180,7 +228,7 @@
         </label>
         <button class="primary" onclick="exportExcel()">📤 Export Excel</button>
         <button onclick="backupJSON()">สำรอง JSON</button>
-        <button class="danger" onclick="resetData()">ล้างข้อมูล</button>
+        <button class="danger" onclick="openResetConfirm()">🗑 ลบข้อมูลทีละรายการ</button>
       </div>
       <p class="note">
         ฐานข้อมูลทำงานในเบราว์เซอร์ของอุปกรณ์นี้ และสามารถ Export เป็น Excel ได้ทุกเมื่อ
@@ -198,6 +246,38 @@
     </div>
   </section>
 </main>
+
+
+
+<div id="resetConfirm" class="confirm-overlay" role="dialog" aria-modal="true" aria-labelledby="resetTitle">
+  <div class="confirm-box">
+    <div class="confirm-icon">🗑</div>
+    <h3 id="resetTitle">เลือกข้อมูลที่ต้องการลบ</h3>
+    <p>
+      เลือกประเภทข้อมูลและเลือกรายการ <b>ทีละชื่อ</b> ระบบจะขอให้ยืนยันอีกครั้งก่อนลบ
+      และจะไม่อนุญาตให้ลบหนังสือหรือสมาชิกที่ยังมีรายการยืมค้างอยู่
+    </p>
+
+    <label for="deleteType" style="text-align:left">ประเภทข้อมูล</label>
+    <select id="deleteType" onchange="populateDeleteItems()">
+      <option value="book">หนังสือ</option>
+      <option value="member">สมาชิก</option>
+      <option value="loan">ประวัติยืม–คืน</option>
+    </select>
+
+    <label for="deleteItem" style="text-align:left">เลือกรายการ</label>
+    <select id="deleteItem" onchange="updateDeletePreview()"></select>
+
+    <div id="deletePreview" class="delete-preview" aria-live="polite">
+      กรุณาเลือกรายการที่ต้องการลบ
+    </div>
+
+    <div class="confirm-actions">
+      <button type="button" onclick="closeResetConfirm()">ยกเลิก</button>
+      <button id="deleteConfirmBtn" type="button" class="danger" onclick="confirmDeleteOne()">ยืนยันการลบ</button>
+    </div>
+  </div>
+</div>
 
 <nav>
   <button class="active" data-screen="dashboard">หน้าแรก</button>
@@ -369,9 +449,128 @@ function backupJSON(){
   const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='AD-Library-Backup.json';a.click();URL.revokeObjectURL(a.href);
 }
-function resetData(){
-  if(confirm('ต้องการล้างข้อมูลในอุปกรณ์นี้ทั้งหมดหรือไม่?')){db={books:[],members:[],loans:[]};save()}
+function openResetConfirm(){
+  document.getElementById('resetConfirm').classList.add('show');
+  document.getElementById('deleteType').value='book';
+  populateDeleteItems();
 }
+function closeResetConfirm(){
+  document.getElementById('resetConfirm').classList.remove('show');
+}
+function populateDeleteItems(){
+  const type=document.getElementById('deleteType').value;
+  const sel=document.getElementById('deleteItem');
+  let options=[];
+
+  if(type==='book'){
+    options=db.books.map(b=>({
+      id:b.id,
+      label:`${b.code} — ${b.title}`
+    }));
+  }else if(type==='member'){
+    options=db.members.map(m=>({
+      id:m.id,
+      label:`${m.code} — ${m.name}`
+    }));
+  }else{
+    options=db.loans.map(l=>{
+      const m=db.members.find(x=>x.id===l.memberId);
+      const b=db.books.find(x=>x.id===l.bookId);
+      const status=l.returnedAt?`คืนแล้ว ${fmtDate(l.returnedAt)}`:`กำลังยืม`;
+      return {
+        id:l.id,
+        label:`${b?.title||'ไม่พบชื่อหนังสือ'} — ${m?.name||'ไม่พบชื่อสมาชิก'} — ${status}`
+      };
+    });
+  }
+
+  sel.innerHTML='<option value="">-- เลือกรายการ --</option>'+
+    options.map(x=>`<option value="${esc(x.id)}">${esc(x.label)}</option>`).join('');
+
+  updateDeletePreview();
+}
+function updateDeletePreview(){
+  const type=document.getElementById('deleteType').value;
+  const id=document.getElementById('deleteItem').value;
+  const preview=document.getElementById('deletePreview');
+  const btn=document.getElementById('deleteConfirmBtn');
+
+  preview.className='delete-preview';
+  btn.disabled=true;
+
+  if(!id){
+    preview.textContent='กรุณาเลือกรายการที่ต้องการลบ';
+    return;
+  }
+
+  if(type==='book'){
+    const b=db.books.find(x=>x.id===id);
+    const active=db.loans.some(l=>l.bookId===id && !l.returnedAt);
+    if(active){
+      preview.classList.add('warning');
+      preview.innerHTML=`<b>${esc(b?.title||'')}</b><br>ไม่สามารถลบได้ เพราะหนังสือเล่มนี้ยังมีรายการยืมค้างอยู่`;
+      return;
+    }
+    preview.innerHTML=`ต้องการลบหนังสือ <b>${esc(b?.code||'')} — ${esc(b?.title||'')}</b> ใช่หรือไม่?`;
+  }else if(type==='member'){
+    const m=db.members.find(x=>x.id===id);
+    const active=db.loans.some(l=>l.memberId===id && !l.returnedAt);
+    if(active){
+      preview.classList.add('warning');
+      preview.innerHTML=`<b>${esc(m?.name||'')}</b><br>ไม่สามารถลบได้ เพราะสมาชิกคนนี้ยังมีรายการยืมค้างอยู่`;
+      return;
+    }
+    preview.innerHTML=`ต้องการลบสมาชิก <b>${esc(m?.code||'')} — ${esc(m?.name||'')}</b> ใช่หรือไม่?`;
+  }else{
+    const l=db.loans.find(x=>x.id===id);
+    const m=db.members.find(x=>x.id===l?.memberId);
+    const b=db.books.find(x=>x.id===l?.bookId);
+    if(l && !l.returnedAt){
+      preview.classList.add('warning');
+      preview.innerHTML=`รายการ <b>${esc(b?.title||'')}</b> ของ <b>${esc(m?.name||'')}</b> ยังไม่คืน จึงยังไม่ควรลบประวัติ`;
+      return;
+    }
+    preview.innerHTML=`ต้องการลบประวัติยืม–คืนของ <b>${esc(m?.name||'-')}</b> : <b>${esc(b?.title||'-')}</b> ใช่หรือไม่?`;
+  }
+
+  btn.disabled=false;
+}
+function confirmDeleteOne(){
+  const type=document.getElementById('deleteType').value;
+  const id=document.getElementById('deleteItem').value;
+  if(!id) return;
+
+  if(type==='book'){
+    if(db.loans.some(l=>l.bookId===id && !l.returnedAt)){
+      alert('ไม่สามารถลบได้ เพราะยังมีรายการยืมค้างอยู่');
+      return;
+    }
+    db.books=db.books.filter(x=>x.id!==id);
+    // Preserve history integrity: remove historical loans tied to deleted book only after explicit book deletion.
+    db.loans=db.loans.filter(l=>l.bookId!==id);
+  }else if(type==='member'){
+    if(db.loans.some(l=>l.memberId===id && !l.returnedAt)){
+      alert('ไม่สามารถลบได้ เพราะสมาชิกยังมีรายการยืมค้างอยู่');
+      return;
+    }
+    db.members=db.members.filter(x=>x.id!==id);
+    db.loans=db.loans.filter(l=>l.memberId!==id);
+  }else{
+    const loan=db.loans.find(x=>x.id===id);
+    if(loan && !loan.returnedAt){
+      alert('ไม่สามารถลบประวัติรายการที่ยังไม่คืน');
+      return;
+    }
+    db.loans=db.loans.filter(x=>x.id!==id);
+  }
+
+  save();
+  populateDeleteItems();
+  alert('ลบข้อมูลรายการที่เลือกเรียบร้อยแล้ว');
+}
+document.getElementById('resetConfirm').addEventListener('click',e=>{
+  if(e.target.id==='resetConfirm') closeResetConfirm();
+});
 refresh();
 </script>
 </body>
