@@ -265,7 +265,12 @@
         <div><label>ชื่อ–สกุล</label><input id="mName"></div>
       </div>
       <button class="primary" style="width:100%;margin-top:12px" onclick="addMember()">เพิ่มสมาชิก</button>
-      <div id="memberList" class="list" style="margin-top:12px"></div>
+
+      <label for="memberSearch" style="margin-top:16px">ค้นหาสมาชิก</label>
+      <input id="memberSearch" placeholder="ค้นหาจากรหัสสมาชิก หรือชื่อ–สกุล" oninput="renderMembers()">
+
+      <div id="memberSearchCount" class="note" style="margin:8px 0 4px"></div>
+      <div id="memberList" class="list" style="margin-top:8px"></div>
     </div>
   </section>
 </main>
@@ -417,7 +422,25 @@ function renderBooks(){
     </div>`).join('') || '<div class="item">ไม่พบข้อมูล</div>';
 }
 function renderMembers(){
-  document.getElementById('memberList').innerHTML=db.members.map(m=>`<div class="item"><b>${esc(m.code)}</b> — ${esc(m.name)}</div>`).join('') || '<div class="item">ยังไม่มีสมาชิก</div>';
+  const q=(document.getElementById('memberSearch')?.value||'').trim().toLowerCase();
+  const rows=db.members.filter(m=>
+    (String(m.code||'')+' '+String(m.name||'')).toLowerCase().includes(q)
+  );
+
+  const count=document.getElementById('memberSearchCount');
+  if(count){
+    count.textContent=q
+      ? `พบสมาชิก ${rows.length} รายการ จากทั้งหมด ${db.members.length} รายการ`
+      : `สมาชิกทั้งหมด ${db.members.length} รายการ`;
+  }
+
+  document.getElementById('memberList').innerHTML=rows.map(m=>{
+    const activeCount=db.loans.filter(l=>l.memberId===m.id && !l.returnedAt).length;
+    return `<div class="item">
+      <b>${esc(m.code)}</b> — ${esc(m.name)}
+      <div class="meta">${activeCount>0 ? `กำลังยืม ${activeCount} รายการ` : 'ไม่มีรายการยืมค้าง'}</div>
+    </div>`;
+  }).join('') || '<div class="item">ไม่พบสมาชิกที่ค้นหา</div>';
 }
 
 function borrowBook(){
