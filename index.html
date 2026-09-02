@@ -116,6 +116,77 @@
 
 
 
+
+
+
+    .overdue-alert{
+      margin:10px 0;padding:12px;border:1.5px solid #dca5a0;border-radius:14px;
+      background:#fff1ef;color:#8b2d25;font-weight:800
+    }
+    .overdue-btn{background:#fff;color:#9b2f25;border:1.5px solid #c96358}
+    .borrower-detail{
+      margin-top:10px;padding:12px;border-radius:13px;background:#f7f2e9;
+      border:1px solid var(--line);font-size:13px;line-height:1.65
+    }
+
+    .search-select{position:relative}
+    .search-results{
+      margin-top:6px;
+      border:1.5px solid var(--line2);
+      border-radius:13px;
+      background:#fff;
+      max-height:240px;
+      overflow:auto;
+      display:none;
+      box-shadow:0 8px 20px rgba(39,55,50,.12);
+    }
+    .search-results.show{display:block}
+    .search-option{
+      width:100%;
+      text-align:left;
+      background:#fff;
+      color:var(--ink);
+      border:0;
+      border-bottom:1px solid #eee4d8;
+      border-radius:0;
+      box-shadow:none;
+      min-height:46px;
+      padding:10px 12px;
+      font-weight:600;
+    }
+    .search-option:last-child{border-bottom:0}
+    .search-option small{display:block;color:var(--muted);font-weight:500;margin-top:2px}
+    .selected-pill{
+      display:none;
+      margin-top:8px;
+      padding:9px 11px;
+      border-radius:12px;
+      background:#eef8f1;
+      border:1px solid #b9d8c4;
+      color:#2f6f56;
+      font-size:13px;
+      font-weight:700;
+    }
+    .selected-pill.show{display:block}
+    .report-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
+    .report-table-wrap{overflow-x:auto}
+    table.report{width:100%;border-collapse:collapse;background:#fff}
+    table.report th,table.report td{border:1px solid #d8c8b6;padding:9px 8px;text-align:left;font-size:13px}
+    table.report th{background:#f3eadc;color:var(--teal)}
+    .report-summary{margin:8px 0 12px;color:var(--muted);font-size:13px}
+    @media(max-width:520px){.report-actions{grid-template-columns:1fr}}
+
+    .book-cover-preview{width:100%;aspect-ratio:3/4;max-width:220px;margin:10px auto;border:2px dashed var(--line2);border-radius:16px;background:#fff8ee;display:flex;align-items:center;justify-content:center;overflow:hidden;color:var(--muted);text-align:center;padding:10px}
+    .book-cover-preview img{width:100%;height:100%;object-fit:cover;display:block}
+    .camera-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+    .camera-label{min-height:48px;border:1.5px solid #d97909;border-radius:13px;padding:10px 14px;font-weight:800;font-size:14px;background:linear-gradient(180deg,#ffa128,#f28b13);color:#fff;box-shadow:0 5px 12px rgba(39,55,50,.12);cursor:pointer;display:flex;align-items:center;justify-content:center;text-align:center}
+    .camera-label input{display:none}
+    .book-row{display:grid;grid-template-columns:72px 1fr;gap:12px;align-items:center}
+    .book-thumb,.book-thumb-placeholder{width:72px;height:96px;border-radius:10px;border:1.5px solid var(--line);background:#f7f0e6}
+    .book-thumb{object-fit:cover}
+    .book-thumb-placeholder{display:grid;place-items:center;color:var(--muted);font-size:11px;text-align:center;padding:4px}
+    .code-preview{font-weight:900;color:var(--teal);letter-spacing:.04em}
+
     .admin-status{
       margin:10px 0 14px;padding:11px 12px;border-radius:12px;
       border:1.5px solid var(--line);font-size:13px;font-weight:700;text-align:center
@@ -195,10 +266,27 @@
   <section id="borrow" class="screen">
     <h2>ยืมหนังสือ</h2>
     <div class="card">
+
       <label>สมาชิก</label>
-      <select id="borrowMember"></select>
+      <div class="search-select">
+        <input id="borrowMemberSearch" autocomplete="off"
+          placeholder="ค้นหาชื่อสมาชิก หรือรหัสสมาชิก"
+          oninput="searchBorrowMembers()" onfocus="searchBorrowMembers()">
+        <div id="borrowMemberResults" class="search-results"></div>
+        <div id="borrowMemberSelected" class="selected-pill"></div>
+      </div>
+      <input type="hidden" id="borrowMember">
+
       <label>หนังสือ</label>
-      <select id="borrowBook"></select>
+      <div class="search-select">
+        <input id="borrowBookSearch" autocomplete="off"
+          placeholder="ค้นหาชื่อหนังสือ ผู้แต่ง ปี หรือรหัสหนังสือ"
+          oninput="searchBorrowBooks()" onfocus="searchBorrowBooks()">
+        <div id="borrowBookResults" class="search-results"></div>
+        <div id="borrowBookSelected" class="selected-pill"></div>
+      </div>
+      <input type="hidden" id="borrowBook">
+
       <label>จำนวนวันที่ยืม</label>
       <input id="borrowDays" type="number" value="7" min="1" max="90">
       <button class="primary" style="width:100%;margin-top:12px" onclick="borrowBook()">บันทึกการยืม</button>
@@ -209,10 +297,14 @@
   <section id="return" class="screen">
     <h2>คืนหนังสือ</h2>
     <div class="card">
-      <label>เลือกรายการที่ต้องการคืน</label>
-      <select id="returnLoan"></select>
-      <button class="orange" style="width:100%;margin-top:12px" onclick="returnBook()">บันทึกการคืน</button>
-      <div id="returnMsg" class="note" style="margin-top:8px"></div>
+      <label>ค้นหาสมาชิกผู้ยืม</label>
+      <input id="returnMemberSearch" autocomplete="off"
+        placeholder="ค้นหาชื่อสมาชิก หรือรหัสสมาชิก"
+        oninput="renderReturnLoans()">
+
+      <div id="overdueBorrowerNotice" class="overdue-alert" style="display:none"></div>
+
+      <div id="returnList" class="list" style="margin-top:12px"></div>
     </div>
   </section>
 
@@ -224,15 +316,51 @@
     </div>
     <div class="card no-print">
       <h3>เพิ่มหนังสือ</h3>
-      <div class="grid2">
-        <div><label>รหัสหนังสือ</label><input id="bCode"></div>
+      <div class="book-cover-preview" id="coverPreview"><span>ยังไม่มีภาพหน้าปก</span></div>
+      <div class="camera-actions">
+        <label class="camera-label">📷 ถ่ายรูปหน้าปก
+          <input id="coverCamera" type="file" accept="image/*" capture="environment" onchange="handleCoverImage(event)">
+        </label>
+        <label class="camera-label" style="background:#fff;color:var(--teal);border-color:var(--teal)">🖼 เลือกรูปจากเครื่อง
+          <input id="coverGallery" type="file" accept="image/*" onchange="handleCoverImage(event)">
+        </label>
+      </div>
+      <button type="button" id="clearCoverBtn" style="width:100%;margin-top:8px;display:none" onclick="clearCoverImage()">ล้างรูปหน้าปก</button>
+      <div class="grid2" style="margin-top:8px">
+        <div><label>รหัสหนังสือ (สร้างอัตโนมัติ)</label><input id="bCode" class="code-preview" readonly></div>
         <div><label>ชื่อหนังสือ</label><input id="bTitle"></div>
         <div><label>ผู้แต่ง</label><input id="bAuthor"></div>
         <div><label>ปี</label><input id="bYear"></div>
       </div>
-      <button class="primary" style="width:100%;margin-top:12px" onclick="addBook()">เพิ่มหนังสือ</button>
+      <button class="primary" style="width:100%;margin-top:12px" onclick="addBook()">บันทึกหนังสือ</button>
+      <div class="note" style="margin-top:8px;text-align:center">Preview หน้าปกก่อนบันทึก และย่อภาพอัตโนมัติสำหรับมือถือ</div>
     </div>
     <div id="bookList" class="list"></div>
+  </section>
+
+
+  <section id="reports" class="screen">
+    <h2>รายงาน</h2>
+
+    <div class="card">
+      <h3>รายงานหนังสือ</h3>
+      <div class="report-actions no-print">
+        <input id="reportBookSearch" placeholder="ค้นหาชื่อหนังสือ ผู้แต่ง ปี หรือรหัส" oninput="renderReports()">
+        <button onclick="printReport('books')">🖨 พิมพ์ / PDF รายงานหนังสือ</button>
+      </div>
+      <div id="bookReportSummary" class="report-summary"></div>
+      <div id="bookReportArea" class="report-table-wrap"></div>
+    </div>
+
+    <div class="card">
+      <h3>รายงานสมาชิก</h3>
+      <div class="report-actions no-print">
+        <input id="reportMemberSearch" placeholder="ค้นหาชื่อสมาชิก หรือรหัสสมาชิก" oninput="renderReports()">
+        <button onclick="printReport('members')">🖨 พิมพ์ / PDF รายงานสมาชิก</button>
+      </div>
+      <div id="memberReportSummary" class="report-summary"></div>
+      <div id="memberReportArea" class="report-table-wrap"></div>
+    </div>
   </section>
 
   <section id="data" class="screen">
@@ -329,11 +457,12 @@
   </div>
 </div>
 
-<nav>
+<nav style="grid-template-columns:repeat(6,1fr)">
   <button class="active" data-screen="dashboard">หน้าแรก</button>
   <button data-screen="borrow">ยืม</button>
   <button data-screen="return">คืน</button>
   <button data-screen="books">หนังสือ</button>
+  <button data-screen="reports">รายงาน</button>
   <button data-screen="data">ข้อมูล</button>
 </nav>
 
@@ -380,17 +509,83 @@ document.querySelectorAll('nav button').forEach(btn=>{
   }
 });
 
+
+function closeBorrowSearchLists(){
+  document.getElementById('borrowMemberResults')?.classList.remove('show');
+  document.getElementById('borrowBookResults')?.classList.remove('show');
+}
+
+function searchBorrowMembers(){
+  const input=document.getElementById('borrowMemberSearch');
+  const box=document.getElementById('borrowMemberResults');
+  if(!input || !box) return;
+  const q=input.value.trim().toLowerCase();
+  const rows=db.members.filter(m =>
+    (String(m.code||'')+' '+String(m.name||'')).toLowerCase().includes(q)
+  ).slice(0,30);
+
+  box.innerHTML=rows.length ? rows.map(m=>`
+    <button type="button" class="search-option" onclick="selectBorrowMember('${m.id}')">
+      ${esc(m.name)} <small>${esc(m.code)}</small>
+    </button>`).join('') : '<div class="item">ไม่พบสมาชิก</div>';
+  box.classList.add('show');
+}
+function selectBorrowMember(id){
+  const m=db.members.find(x=>x.id===id); if(!m) return;
+  document.getElementById('borrowMember').value=id;
+  document.getElementById('borrowMemberSearch').value=m.name;
+  const pill=document.getElementById('borrowMemberSelected');
+  pill.textContent=`เลือกแล้ว: ${m.code} — ${m.name}`;
+  pill.classList.add('show');
+  document.getElementById('borrowMemberResults').classList.remove('show');
+}
+
+function searchBorrowBooks(){
+  const input=document.getElementById('borrowBookSearch');
+  const box=document.getElementById('borrowBookResults');
+  if(!input || !box) return;
+  const q=input.value.trim().toLowerCase();
+  const rows=db.books.filter(b =>
+    b.status==='AVAILABLE' &&
+    (String(b.code||'')+' '+String(b.title||'')+' '+String(b.author||'')+' '+String(b.year||'')).toLowerCase().includes(q)
+  ).slice(0,30);
+
+  box.innerHTML=rows.length ? rows.map(b=>`
+    <button type="button" class="search-option" onclick="selectBorrowBook('${b.id}')">
+      ${esc(b.title)} <small>${esc(b.code)} · ${esc(b.author||'-')} · ${esc(b.year||'-')}</small>
+    </button>`).join('') : '<div class="item">ไม่พบหนังสือที่พร้อมยืม</div>';
+  box.classList.add('show');
+}
+function selectBorrowBook(id){
+  const b=db.books.find(x=>x.id===id); if(!b) return;
+  document.getElementById('borrowBook').value=id;
+  document.getElementById('borrowBookSearch').value=b.title;
+  const pill=document.getElementById('borrowBookSelected');
+  pill.textContent=`เลือกแล้ว: ${b.code} — ${b.title} — ${b.author||'-'} — ${b.year||'-'}`;
+  pill.classList.add('show');
+  document.getElementById('borrowBookResults').classList.remove('show');
+}
+
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.search-select')) closeBorrowSearchLists();
+});
+
+function clearBorrowSelection(){
+  ['borrowMember','borrowBook','borrowMemberSearch','borrowBookSearch'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
+  ['borrowMemberSelected','borrowBookSelected'].forEach(id=>{
+    const el=document.getElementById(id); if(el){el.textContent='';el.classList.remove('show');}
+  });
+}
+
+
 function refresh(){
   const active=db.loans.filter(l=>!l.returnedAt);
   document.getElementById('kBooks').textContent=db.books.length;
   document.getElementById('kMembers').textContent=db.members.length;
   document.getElementById('kLoaned').textContent=active.length;
   document.getElementById('kOverdue').textContent=active.filter(overdue).length;
-
-  document.getElementById('borrowMember').innerHTML =
-    '<option value="">-- เลือกสมาชิก --</option>'+db.members.map(m=>`<option value="${m.id}">${esc(m.code)} — ${esc(m.name)}</option>`).join('');
-  document.getElementById('borrowBook').innerHTML =
-    '<option value="">-- เลือกหนังสือ --</option>'+db.books.filter(b=>b.status==='AVAILABLE').map(b=>`<option value="${b.id}">${esc(b.code)} — ${esc(b.title)}</option>`).join('');
   document.getElementById('returnLoan').innerHTML =
     '<option value="">-- เลือกรายการยืม --</option>'+active.map(l=>{
       const m=db.members.find(x=>x.id===l.memberId), b=db.books.find(x=>x.id===l.bookId);
@@ -399,6 +594,9 @@ function refresh(){
   renderBooks();
   renderMembers();
   renderRecent();
+  refreshBookCode();
+  renderReports();
+  renderReturnLoans();
 }
 
 function renderRecent(){
@@ -411,15 +609,70 @@ function renderRecent(){
   }).join(''):'<div class="item">ยังไม่มีรายการยืม</div>';
 }
 
+
+let pendingCoverImage='';
+
+function generateNextBookCode(){
+  let maxNo=0;
+  db.books.forEach(b=>{
+    const m=String(b.code||'').match(/^AD-BK-(\d+)$/i);
+    if(m) maxNo=Math.max(maxNo,parseInt(m[1],10)||0);
+  });
+  return 'AD-BK-'+String(maxNo+1).padStart(4,'0');
+}
+function refreshBookCode(){
+  const el=document.getElementById('bCode');
+  if(el) el.value=generateNextBookCode();
+}
+function handleCoverImage(event){
+  const file=event.target.files?.[0];
+  if(!file) return;
+  if(!file.type.startsWith('image/')){ alert('กรุณาเลือกไฟล์รูปภาพ'); return; }
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const img=new Image();
+    img.onload=()=>{
+      const maxW=720,maxH=960;
+      const scale=Math.min(1,maxW/img.width,maxH/img.height);
+      const w=Math.max(1,Math.round(img.width*scale));
+      const h=Math.max(1,Math.round(img.height*scale));
+      const c=document.createElement('canvas'); c.width=w; c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h);
+      pendingCoverImage=c.toDataURL('image/jpeg',0.72);
+      renderCoverPreview();
+    };
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+function renderCoverPreview(){
+  const box=document.getElementById('coverPreview');
+  const clearBtn=document.getElementById('clearCoverBtn');
+  if(!box) return;
+  if(pendingCoverImage){
+    box.innerHTML=`<img src="${pendingCoverImage}" alt="ตัวอย่างหน้าปกหนังสือ">`;
+    if(clearBtn) clearBtn.style.display='';
+  }else{
+    box.innerHTML='<span>ยังไม่มีภาพหน้าปก</span>';
+    if(clearBtn) clearBtn.style.display='none';
+  }
+}
+function clearCoverImage(){
+  pendingCoverImage='';
+  ['coverCamera','coverGallery'].forEach(id=>{const x=document.getElementById(id); if(x)x.value='';});
+  renderCoverPreview();
+}
+
 function renderBooks(){
   const q=(document.getElementById('bookSearch')?.value||'').toLowerCase();
   const rows=db.books.filter(b=>(b.code+' '+b.title+' '+b.author).toLowerCase().includes(q));
   document.getElementById('bookList').innerHTML=rows.map(b=>`
-    <div class="item">
-      <b>${esc(b.code)} — ${esc(b.title)}</b>
+    <div class="item"><div class="book-row">
+      ${b.coverImage?`<img class="book-thumb" src="${b.coverImage}" alt="หน้าปก ${esc(b.title)}">`:`<div class="book-thumb-placeholder">ไม่มี<br>หน้าปก</div>`}
+      <div><b>${esc(b.code)} — ${esc(b.title)}</b>
       <div>${esc(b.author||'-')} · ${esc(b.year||'-')}</div>
-      <div class="meta">${b.status==='AVAILABLE'?'<span class="status available">พร้อมยืม</span>':'<span class="status loaned">ถูกยืม</span>'}</div>
-    </div>`).join('') || '<div class="item">ไม่พบข้อมูล</div>';
+      <div class="meta">${b.status==='AVAILABLE'?'<span class="status available">พร้อมยืม</span>':'<span class="status loaned">ถูกยืม</span>'}</div></div>
+    </div></div>`).join('') || '<div class="item">ไม่พบข้อมูล</div>';
 }
 function renderMembers(){
   const q=(document.getElementById('memberSearch')?.value||'').trim().toLowerCase();
@@ -454,8 +707,93 @@ function borrowBook(){
   db.loans.push({id:crypto.randomUUID(),memberId,bookId,borrowedAt:todayISO(),dueDate:addDays(days),returnedAt:null});
   b.status='ON_LOAN';
   msg.className='success';msg.textContent='✓ บันทึกการยืมเรียบร้อย';
+  clearBorrowSelection();
   save();
 }
+
+function renderReturnLoans(){
+  const q=(document.getElementById('returnMemberSearch')?.value||'').trim().toLowerCase();
+  const active=db.loans.filter(l=>!l.returnedAt);
+
+  const rows=active.filter(l=>{
+    const m=db.members.find(x=>x.id===l.memberId);
+    const b=db.books.find(x=>x.id===l.bookId);
+    return (String(m?.code||'')+' '+String(m?.name||'')+' '+String(b?.code||'')+' '+String(b?.title||'')).toLowerCase().includes(q);
+  });
+
+  const overdue=rows.filter(l=>new Date(l.dueDate)<new Date(new Date().toDateString()));
+  const notice=document.getElementById('overdueBorrowerNotice');
+  if(notice){
+    if(overdue.length){
+      const people=[...new Set(overdue.map(l=>{
+        const m=db.members.find(x=>x.id===l.memberId);
+        return m ? `${m.name} (${m.code})` : 'ไม่ทราบสมาชิก';
+      }))];
+      notice.style.display='';
+      notice.innerHTML=`⚠️ พบผู้ค้างส่ง ${people.length} คน · หนังสือค้างส่ง ${overdue.length} รายการ
+        <div style="margin-top:8px"><button class="overdue-btn" onclick="showOverdueBorrowers()">ดูข้อมูลผู้ค้างส่ง</button></div>`;
+    }else{
+      notice.style.display='none';
+      notice.innerHTML='';
+    }
+  }
+
+  const box=document.getElementById('returnList');
+  if(!box) return;
+  box.innerHTML=rows.map(l=>{
+    const m=db.members.find(x=>x.id===l.memberId);
+    const b=db.books.find(x=>x.id===l.bookId);
+    const late=new Date(l.dueDate)<new Date(new Date().toDateString());
+    return `<div class="item">
+      <b>${esc(b?.title||'-')}</b>
+      <div>${esc(b?.code||'-')} · ผู้ยืม: <b>${esc(m?.name||'-')}</b> (${esc(m?.code||'-')})</div>
+      <div class="meta">กำหนดคืน: ${new Date(l.dueDate).toLocaleDateString('th-TH')}
+        ${late?' · <span style="color:#a3382f;font-weight:800">ค้างส่ง</span>':''}
+      </div>
+      <button style="width:100%;margin-top:8px" onclick="showBorrowerDetail('${l.id}')">👤 ดูข้อมูลสมาชิกผู้ยืม</button>
+      <button class="primary" style="width:100%;margin-top:8px" onclick="returnBook('${l.id}')">คืนหนังสือ</button>
+      <div id="borrower-${l.id}" class="borrower-detail" style="display:none"></div>
+    </div>`;
+  }).join('') || '<div class="item">ไม่พบรายการยืมที่ตรงกับการค้นหา</div>';
+}
+
+function showBorrowerDetail(loanId){
+  const l=db.loans.find(x=>x.id===loanId);
+  if(!l) return;
+  const m=db.members.find(x=>x.id===l.memberId);
+  const b=db.books.find(x=>x.id===l.bookId);
+  const el=document.getElementById(`borrower-${loanId}`);
+  if(!el) return;
+  const active=db.loans.filter(x=>x.memberId===l.memberId && !x.returnedAt).length;
+  const overdue=db.loans.filter(x=>x.memberId===l.memberId && !x.returnedAt && new Date(x.dueDate)<new Date(new Date().toDateString())).length;
+  el.style.display=el.style.display==='none'?'block':'none';
+  el.innerHTML=`<b>ข้อมูลสมาชิกผู้ยืม</b><br>
+    รหัสสมาชิก: ${esc(m?.code||'-')}<br>
+    ชื่อ–สกุล: ${esc(m?.name||'-')}<br>
+    หนังสือรายการนี้: ${esc(b?.title||'-')}<br>
+    รายการยืมปัจจุบัน: ${active} รายการ<br>
+    รายการค้างส่ง: ${overdue} รายการ`;
+}
+
+function showOverdueBorrowers(){
+  const overdue=db.loans.filter(l=>!l.returnedAt && new Date(l.dueDate)<new Date(new Date().toDateString()));
+  if(!overdue.length){ alert('ไม่พบผู้ค้างส่ง'); return; }
+  const grouped={};
+  overdue.forEach(l=>{
+    const m=db.members.find(x=>x.id===l.memberId);
+    const b=db.books.find(x=>x.id===l.bookId);
+    const key=l.memberId;
+    if(!grouped[key]) grouped[key]={member:m,books:[]};
+    grouped[key].books.push({book:b,due:l.dueDate});
+  });
+  const text=Object.values(grouped).map(g=>{
+    const books=g.books.map(x=>`• ${x.book?.title||'-'} — กำหนดคืน ${new Date(x.due).toLocaleDateString('th-TH')}`).join('\n');
+    return `${g.member?.name||'-'} (${g.member?.code||'-'})\n${books}`;
+  }).join('\n\n');
+  alert(`ข้อมูลสมาชิกผู้ค้างส่ง\n\n${text}`);
+}
+
+
 function returnBook(){
   const id=document.getElementById('returnLoan').value;
   const msg=document.getElementById('returnMsg');
@@ -468,12 +806,15 @@ function returnBook(){
   save();
 }
 function addBook(){
-  const code=document.getElementById('bCode').value.trim(), title=document.getElementById('bTitle').value.trim();
-  if(!code||!title){alert('กรุณากรอกรหัสและชื่อหนังสือ');return}
-  if(db.books.some(b=>b.code===code)){alert('รหัสหนังสือนี้มีอยู่แล้ว');return}
-  db.books.push({id:crypto.randomUUID(),code,title,author:document.getElementById('bAuthor').value.trim(),year:document.getElementById('bYear').value.trim(),status:'AVAILABLE'});
-  ['bCode','bTitle','bAuthor','bYear'].forEach(id=>document.getElementById(id).value='');
+  const code=generateNextBookCode();
+  const title=document.getElementById('bTitle').value.trim();
+  if(!title){alert('กรุณากรอกชื่อหนังสือ');return}
+  db.books.push({id:crypto.randomUUID(),code,title,author:document.getElementById('bAuthor').value.trim(),year:document.getElementById('bYear').value.trim(),status:'AVAILABLE',coverImage:pendingCoverImage||''});
+  ['bTitle','bAuthor','bYear'].forEach(id=>document.getElementById(id).value='');
+  clearCoverImage();
   save();
+  refreshBookCode();
+  alert(`บันทึกหนังสือเรียบร้อย\nรหัสหนังสือ: ${code}`);
 }
 function addMember(){
   const code=document.getElementById('mCode').value.trim(), name=document.getElementById('mName').value.trim();
@@ -483,6 +824,78 @@ function addMember(){
   document.getElementById('mCode').value='';document.getElementById('mName').value='';
   save();
 }
+
+
+function renderReports(){
+  const bq=(document.getElementById('reportBookSearch')?.value||'').trim().toLowerCase();
+  const mq=(document.getElementById('reportMemberSearch')?.value||'').trim().toLowerCase();
+
+  const books=db.books.filter(b =>
+    (String(b.code||'')+' '+String(b.title||'')+' '+String(b.author||'')+' '+String(b.year||'')).toLowerCase().includes(bq)
+  );
+
+  const members=db.members.filter(m =>
+    (String(m.code||'')+' '+String(m.name||'')).toLowerCase().includes(mq)
+  );
+
+  const bsum=document.getElementById('bookReportSummary');
+  if(bsum) bsum.textContent=`จำนวนหนังสือ ${books.length} รายการ จากทั้งหมด ${db.books.length} รายการ`;
+
+  const barea=document.getElementById('bookReportArea');
+  if(barea){
+    barea.innerHTML=`<table class="report">
+      <thead><tr><th>ลำดับ</th><th>รหัสหนังสือ</th><th>ชื่อหนังสือ</th><th>ผู้แต่ง</th><th>ปี</th><th>สถานะ</th></tr></thead>
+      <tbody>${books.map((b,i)=>`<tr>
+        <td>${i+1}</td><td>${esc(b.code)}</td><td>${esc(b.title)}</td>
+        <td>${esc(b.author||'-')}</td><td>${esc(b.year||'-')}</td>
+        <td>${b.status==='AVAILABLE'?'พร้อมยืม':'ถูกยืม'}</td>
+      </tr>`).join('') || '<tr><td colspan="6">ไม่พบข้อมูล</td></tr>'}</tbody>
+    </table>`;
+  }
+
+  const msum=document.getElementById('memberReportSummary');
+  if(msum) msum.textContent=`จำนวนสมาชิก ${members.length} รายการ จากทั้งหมด ${db.members.length} รายการ`;
+
+  const marea=document.getElementById('memberReportArea');
+  if(marea){
+    marea.innerHTML=`<table class="report">
+      <thead><tr><th>ลำดับ</th><th>รหัสสมาชิก</th><th>ชื่อ–สกุล</th><th>กำลังยืม</th><th>เคยยืมทั้งหมด</th></tr></thead>
+      <tbody>${members.map((m,i)=>{
+        const active=db.loans.filter(l=>l.memberId===m.id && !l.returnedAt).length;
+        const total=db.loans.filter(l=>l.memberId===m.id).length;
+        return `<tr><td>${i+1}</td><td>${esc(m.code)}</td><td>${esc(m.name)}</td><td>${active}</td><td>${total}</td></tr>`;
+      }).join('') || '<tr><td colspan="5">ไม่พบข้อมูล</td></tr>'}</tbody>
+    </table>`;
+  }
+}
+
+function printReport(type){
+  const title=type==='books'?'รายงานข้อมูลหนังสือ':'รายงานข้อมูลสมาชิก';
+  const source=document.getElementById(type==='books'?'bookReportArea':'memberReportArea');
+  if(!source) return;
+
+  const w=window.open('','_blank');
+  w.document.write(`<!doctype html><html lang="th"><head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>${title}</title>
+    <style>
+      body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans Thai",Arial,sans-serif;padding:24px;color:#222}
+      h1{text-align:center;font-size:22px;margin:0 0 6px}
+      p{text-align:center;color:#555;font-size:12px;margin:0 0 18px}
+      table{width:100%;border-collapse:collapse}
+      th,td{border:1px solid #999;padding:7px;font-size:12px;text-align:left}
+      th{background:#eee}
+      @media print{body{padding:0}}
+    </style></head><body>
+    <h1>${title}</h1>
+    <p>AD Library · วันที่ ${new Date().toLocaleDateString('th-TH')}</p>
+    ${source.innerHTML}
+    </body></html>`);
+  w.document.close();
+  w.focus();
+  setTimeout(()=>w.print(),300);
+}
+
 
 function exportExcel(){
   if(typeof XLSX==='undefined'){alert('ไม่สามารถโหลดระบบ Excel ได้ กรุณาเชื่อมต่ออินเทอร์เน็ต');return}
@@ -505,7 +918,7 @@ function importExcel(ev){
     try{
       const wb=XLSX.read(e.target.result,{type:'array'});
       const sheet=n=>wb.Sheets[n]?XLSX.utils.sheet_to_json(wb.Sheets[n],{defval:''}):[];
-      const books=sheet('Books').map(x=>({id:String(x.book_id||crypto.randomUUID()),code:String(x.book_code||''),title:String(x.title||''),author:String(x.author||''),year:String(x.year||''),status:String(x.status||'AVAILABLE')}));
+      const books=sheet('Books').map(x=>({id:String(x.book_id||crypto.randomUUID()),code:String(x.book_code||''),title:String(x.title||''),author:String(x.author||''),year:String(x.year||''),status:String(x.status||'AVAILABLE'),coverImage:''}));
       const members=sheet('Members').map(x=>({id:String(x.member_id||crypto.randomUUID()),code:String(x.member_code||''),name:String(x.name||'')}));
       const loans=sheet('Loans').map(x=>({id:String(x.loan_id||crypto.randomUUID()),memberId:String(x.member_id||''),bookId:String(x.book_id||''),borrowedAt:String(x.borrowed_at||''),dueDate:String(x.due_date||''),returnedAt:x.returned_at?String(x.returned_at):null}));
       db={books,members,loans};save();alert('Import Excel เรียบร้อย');
@@ -730,6 +1143,8 @@ document.getElementById('resetConfirm').addEventListener('click',e=>{
   if(e.target.id==='resetConfirm') closeResetConfirm();
 });
 refresh();
+renderCoverPreview();
+refreshBookCode();
 updateAdminUI();
 </script>
 </body>
