@@ -118,17 +118,6 @@
 
 
 
-
-    .overdue-alert{
-      margin:10px 0;padding:12px;border:1.5px solid #dca5a0;border-radius:14px;
-      background:#fff1ef;color:#8b2d25;font-weight:800
-    }
-    .overdue-btn{background:#fff;color:#9b2f25;border:1.5px solid #c96358}
-    .borrower-detail{
-      margin-top:10px;padding:12px;border-radius:13px;background:#f7f2e9;
-      border:1px solid var(--line);font-size:13px;line-height:1.65
-    }
-
     .search-select{position:relative}
     .search-results{
       margin-top:6px;
@@ -297,14 +286,10 @@
   <section id="return" class="screen">
     <h2>คืนหนังสือ</h2>
     <div class="card">
-      <label>ค้นหาสมาชิกผู้ยืม</label>
-      <input id="returnMemberSearch" autocomplete="off"
-        placeholder="ค้นหาชื่อสมาชิก หรือรหัสสมาชิก"
-        oninput="renderReturnLoans()">
-
-      <div id="overdueBorrowerNotice" class="overdue-alert" style="display:none"></div>
-
-      <div id="returnList" class="list" style="margin-top:12px"></div>
+      <label>เลือกรายการที่ต้องการคืน</label>
+      <select id="returnLoan"></select>
+      <button class="orange" style="width:100%;margin-top:12px" onclick="returnBook()">บันทึกการคืน</button>
+      <div id="returnMsg" class="note" style="margin-top:8px"></div>
     </div>
   </section>
 
@@ -596,7 +581,6 @@ function refresh(){
   renderRecent();
   refreshBookCode();
   renderReports();
-  renderReturnLoans();
 }
 
 function renderRecent(){
@@ -710,90 +694,6 @@ function borrowBook(){
   clearBorrowSelection();
   save();
 }
-
-function renderReturnLoans(){
-  const q=(document.getElementById('returnMemberSearch')?.value||'').trim().toLowerCase();
-  const active=db.loans.filter(l=>!l.returnedAt);
-
-  const rows=active.filter(l=>{
-    const m=db.members.find(x=>x.id===l.memberId);
-    const b=db.books.find(x=>x.id===l.bookId);
-    return (String(m?.code||'')+' '+String(m?.name||'')+' '+String(b?.code||'')+' '+String(b?.title||'')).toLowerCase().includes(q);
-  });
-
-  const overdue=rows.filter(l=>new Date(l.dueDate)<new Date(new Date().toDateString()));
-  const notice=document.getElementById('overdueBorrowerNotice');
-  if(notice){
-    if(overdue.length){
-      const people=[...new Set(overdue.map(l=>{
-        const m=db.members.find(x=>x.id===l.memberId);
-        return m ? `${m.name} (${m.code})` : 'ไม่ทราบสมาชิก';
-      }))];
-      notice.style.display='';
-      notice.innerHTML=`⚠️ พบผู้ค้างส่ง ${people.length} คน · หนังสือค้างส่ง ${overdue.length} รายการ
-        <div style="margin-top:8px"><button class="overdue-btn" onclick="showOverdueBorrowers()">ดูข้อมูลผู้ค้างส่ง</button></div>`;
-    }else{
-      notice.style.display='none';
-      notice.innerHTML='';
-    }
-  }
-
-  const box=document.getElementById('returnList');
-  if(!box) return;
-  box.innerHTML=rows.map(l=>{
-    const m=db.members.find(x=>x.id===l.memberId);
-    const b=db.books.find(x=>x.id===l.bookId);
-    const late=new Date(l.dueDate)<new Date(new Date().toDateString());
-    return `<div class="item">
-      <b>${esc(b?.title||'-')}</b>
-      <div>${esc(b?.code||'-')} · ผู้ยืม: <b>${esc(m?.name||'-')}</b> (${esc(m?.code||'-')})</div>
-      <div class="meta">กำหนดคืน: ${new Date(l.dueDate).toLocaleDateString('th-TH')}
-        ${late?' · <span style="color:#a3382f;font-weight:800">ค้างส่ง</span>':''}
-      </div>
-      <button style="width:100%;margin-top:8px" onclick="showBorrowerDetail('${l.id}')">👤 ดูข้อมูลสมาชิกผู้ยืม</button>
-      <button class="primary" style="width:100%;margin-top:8px" onclick="returnBook('${l.id}')">คืนหนังสือ</button>
-      <div id="borrower-${l.id}" class="borrower-detail" style="display:none"></div>
-    </div>`;
-  }).join('') || '<div class="item">ไม่พบรายการยืมที่ตรงกับการค้นหา</div>';
-}
-
-function showBorrowerDetail(loanId){
-  const l=db.loans.find(x=>x.id===loanId);
-  if(!l) return;
-  const m=db.members.find(x=>x.id===l.memberId);
-  const b=db.books.find(x=>x.id===l.bookId);
-  const el=document.getElementById(`borrower-${loanId}`);
-  if(!el) return;
-  const active=db.loans.filter(x=>x.memberId===l.memberId && !x.returnedAt).length;
-  const overdue=db.loans.filter(x=>x.memberId===l.memberId && !x.returnedAt && new Date(x.dueDate)<new Date(new Date().toDateString())).length;
-  el.style.display=el.style.display==='none'?'block':'none';
-  el.innerHTML=`<b>ข้อมูลสมาชิกผู้ยืม</b><br>
-    รหัสสมาชิก: ${esc(m?.code||'-')}<br>
-    ชื่อ–สกุล: ${esc(m?.name||'-')}<br>
-    หนังสือรายการนี้: ${esc(b?.title||'-')}<br>
-    รายการยืมปัจจุบัน: ${active} รายการ<br>
-    รายการค้างส่ง: ${overdue} รายการ`;
-}
-
-function showOverdueBorrowers(){
-  const overdue=db.loans.filter(l=>!l.returnedAt && new Date(l.dueDate)<new Date(new Date().toDateString()));
-  if(!overdue.length){ alert('ไม่พบผู้ค้างส่ง'); return; }
-  const grouped={};
-  overdue.forEach(l=>{
-    const m=db.members.find(x=>x.id===l.memberId);
-    const b=db.books.find(x=>x.id===l.bookId);
-    const key=l.memberId;
-    if(!grouped[key]) grouped[key]={member:m,books:[]};
-    grouped[key].books.push({book:b,due:l.dueDate});
-  });
-  const text=Object.values(grouped).map(g=>{
-    const books=g.books.map(x=>`• ${x.book?.title||'-'} — กำหนดคืน ${new Date(x.due).toLocaleDateString('th-TH')}`).join('\n');
-    return `${g.member?.name||'-'} (${g.member?.code||'-'})\n${books}`;
-  }).join('\n\n');
-  alert(`ข้อมูลสมาชิกผู้ค้างส่ง\n\n${text}`);
-}
-
-
 function returnBook(){
   const id=document.getElementById('returnLoan').value;
   const msg=document.getElementById('returnMsg');
